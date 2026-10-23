@@ -32,7 +32,7 @@
     <!-- MAIN CONTAINER -->
     <main class="w-full max-w-md relative z-10">
 
-        <!-- LOGIN CARD -->
+        <!-- LOGIN / SIGNUP CARD -->
         <div id="loginCard"
             class="page-transition opacity-100 scale-100 bg-slate-800/80 backdrop-blur-xl border border-slate-700/60 shadow-2xl rounded-2xl p-8">
             <!-- Header -->
@@ -41,11 +41,13 @@
                     class="inline-flex items-center justify-center w-14 h-14 bg-indigo-600/20 text-indigo-400 rounded-xl mb-3 border border-indigo-500/30">
                     <i class="fa-solid font-bold fa-lock text-2xl"></i>
                 </div>
-                <h1 class="text-2xl font-bold text-white tracking-tight">Welcome Back</h1>
-                <p class="text-sm text-slate-400 mt-1">Please enter your details to sign in</p>
+                <!-- เพิ่ม id="cardTitle" เพื่อให้สคริปต์สลับข้อความได้ -->
+                <h1 id="cardTitle" class="text-2xl font-bold text-white tracking-tight">Welcome Back</h1>
+                <!-- เพิ่ม id="cardSubtitle" -->
+                <p id="cardSubtitle" class="text-sm text-slate-400 mt-1">Please enter your details to sign in</p>
             </div>
 
-            <!-- Login Form -->
+            <!-- Form -->
             <form id="loginForm" class="space-y-5" onsubmit="handleLogin(event)">
 
                 <!-- Email/Username Input -->
@@ -90,8 +92,8 @@
                     </div>
                 </div>
 
-                <!-- Remember Me & Checkbox -->
-                <div class="flex items-center justify-between text-sm">
+                <!-- Remember Me & Checkbox (ใส่ id เพื่อให้ซ่อนตอนกดสมัครสมาชิกได้) -->
+                <div id="rememberContainer" class="flex items-center justify-between text-sm">
                     <label class="flex items-center space-x-2 cursor-pointer select-none">
                         <input type="checkbox" id="rememberMe"
                             class="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-800" />
@@ -107,9 +109,10 @@
                 </button>
             </form>
 
-            <!-- Bottom helper text -->
+            <!-- Bottom helper text (ส่วนสลับโหมดที่เพิ่มให้แล้วครับ) -->
             <p class="text-center text-xs text-slate-500 mt-6">
-                Don't have an account? <a href="#" onclick="showToast('Registration is currently closed.')"
+                <span id="toggleText">Don't have an account? </span>
+                <a href="#" id="toggleLink" onclick="toggleMode(); return false;"
                     class="text-indigo-400 hover:underline">Sign up</a>
             </p>
         </div>
@@ -117,7 +120,6 @@
         <!-- BLANK / EMPTY PAGE SCREEN (Hidden initially) -->
         <div id="blankScreen"
             class="hidden page-transition opacity-0 scale-95 fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-50 p-6">
-            <!-- Subtle Overlay Canvas / Screen content (Blank area) -->
             <div class="text-center space-y-4">
                 <div
                     class="inline-flex items-center justify-center w-12 h-12 bg-slate-900 border border-slate-800 text-slate-500 rounded-full">
@@ -128,7 +130,6 @@
                     You have successfully authenticated. This is an empty workspace layout.
                 </p>
 
-                <!-- Floating Logout / Reset Action Button -->
                 <div class="pt-6">
                     <button onclick="handleLogout()"
                         class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold tracking-wide transition-all shadow-md flex items-center space-x-2 mx-auto">
@@ -150,6 +151,37 @@
 
     <!-- Logic Script -->
     <script>
+        // ตัวแปรเก็บสถานะปัจจุบันว่าเป็นโหมด 'login' หรือ 'signup'
+        let currentMode = 'login';
+
+        // ฟังก์ชันสำหรับสลับโหมดระหว่าง Login และ Sign Up
+        function toggleMode() {
+            currentMode = currentMode === 'login' ? 'signup' : 'login';
+
+            const cardTitle = document.getElementById('cardTitle');
+            const cardSubtitle = document.getElementById('cardSubtitle');
+            const btnText = document.getElementById('btnText');
+            const toggleText = document.getElementById('toggleText');
+            const toggleLink = document.getElementById('toggleLink');
+            const rememberContainer = document.getElementById('rememberContainer');
+
+            if (currentMode === 'signup') {
+                cardTitle.textContent = "Create Account";
+                cardSubtitle.textContent = "Please enter your details to sign up";
+                btnText.textContent = "Sign Up";
+                toggleText.innerHTML = "Already have an account? ";
+                toggleLink.textContent = "Sign in";
+                rememberContainer.classList.add('hidden'); // ซ่อนปุ่ม Remember me ตอนสมัครสมาชิก
+            } else {
+                cardTitle.textContent = "Welcome Back";
+                cardSubtitle.textContent = "Please enter your details to sign in";
+                btnText.textContent = "Sign In";
+                toggleText.innerHTML = "Don't have an account? ";
+                toggleLink.textContent = "Sign up";
+                rememberContainer.classList.remove('hidden'); // แสดงปุ่ม Remember me ตอนเข้าสู่ระบบ
+            }
+        }
+
         // Toggle password visibility
         function togglePasswordVisibility() {
             const passwordInput = document.getElementById('password');
@@ -166,7 +198,7 @@
             }
         }
 
-        // Handle Login Submission & Connect to Backend
+        // Handle Form Submission (รองรับทั้ง Login และ Sign Up ตามโหมดปัจจุบัน)
         async function handleLogin(event) {
             event.preventDefault();
 
@@ -178,27 +210,30 @@
             const loginCard = document.getElementById('loginCard');
             const blankScreen = document.getElementById('blankScreen');
 
-            // Show loading indicator on button
-            btnText.textContent = "Connecting...";
+            // กำหนด Endpoint ตามโหมดที่เลือก
+            const endpoint = currentMode === 'signup'
+                ? 'http://localhost:3000/api/signup'
+                : 'http://localhost:3000/api/login';
+
+            btnText.textContent = currentMode === 'signup' ? "Signing up..." : "Signing in...";
             btnSpinner.classList.remove('hidden');
 
             try {
-                // ส่งข้อมูลแบบ POST ไปยัง Backend ของเรา
-                const response = await fetch('http://localhost:3000/api/signup', {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        email: identityInput,    // ส่งค่าจากช่อง input ไปยังฟิลด์ email
-                        password: passwordInput  // ส่งค่ารหัสผ่านไปที่ฟิลด์ password
+                        email: identityInput,
+                        password: passwordInput
                     })
                 });
 
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    showToast(result.message || "สมัครสมาชิกสำเร็จ!");
+                    showToast(result.message || (currentMode === 'signup' ? "สมัครสมาชิกสำเร็จ!" : "เข้าสู่ระบบสำเร็จ!"));
 
                     // หน่วงเวลาเล็กน้อยแล้วเปลี่ยนหน้าไปหน้า Blank Screen
                     setTimeout(() => {
@@ -213,45 +248,41 @@
                             blankScreen.classList.add('opacity-100', 'scale-100');
 
                             // Reset button state
-                            btnText.textContent = "Sign In";
+                            btnText.textContent = currentMode === 'signup' ? "Sign Up" : "Sign In";
                             btnSpinner.classList.add('hidden');
                         }, 300);
                     }, 500);
 
                 } else {
-                    // หากเกิดข้อผิดพลาดจาก Backend หรือข้อมูลซ้ำ
-                    showToast(result.message || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
-                    btnText.textContent = "Sign In";
+                    showToast(result.message || "เกิดข้อผิดพลาด");
+                    btnText.textContent = currentMode === 'signup' ? "Sign Up" : "Sign In";
                     btnSpinner.classList.add('hidden');
                 }
 
             } catch (error) {
                 console.error('Connection error:', error);
                 showToast("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
-                btnText.textContent = "Sign In";
+                btnText.textContent = currentMode === 'signup' ? "Sign Up" : "Sign In";
                 btnSpinner.classList.add('hidden');
             }
         }
-        
+
         // Handle Logout / Return to Login Form
         function handleLogout() {
             const loginCard = document.getElementById('loginCard');
             const blankScreen = document.getElementById('blankScreen');
 
-            // Fade out Blank Screen
             blankScreen.classList.remove('opacity-100', 'scale-100');
             blankScreen.classList.add('opacity-0', 'scale-95');
 
             setTimeout(() => {
                 blankScreen.classList.add('hidden');
 
-                // Show Login Form Card
                 loginCard.classList.remove('hidden');
                 void loginCard.offsetWidth;
                 loginCard.classList.remove('opacity-0', 'scale-95');
                 loginCard.classList.add('opacity-100', 'scale-100');
 
-                // Clear input fields optional reset
                 document.getElementById('loginForm').reset();
             }, 300);
         }
@@ -269,7 +300,7 @@
                 toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
-        }
+        }   
     </script>
 </body>
 
